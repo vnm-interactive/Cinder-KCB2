@@ -36,57 +36,62 @@
 */
 
 #include "cinder/app/App.h"
-#include "cinder/MayaCamUI.h"
+#include "cinder/CameraUi.h"
+#include "cinder/gl/draw.h"
 #include "cinder/gl/GlslProg.h"
+#include "cinder/gl/Scoped.h"
 #include "cinder/gl/Texture.h"
 #include "cinder/gl/VboMesh.h"
 #include "cinder/params/Params.h"
 
 #include "Kinect2.h"
 
-class PointCloudApp : public ci::app::App
+using namespace ci;
+
+class PointCloudApp : public app::App
 {
 public:
 	void						draw() override;
-	void 						mouseDrag( ci::app::MouseEvent event ) override;
+	void 						mouseDrag( app::MouseEvent event ) override;
 	void						resize() override;
 	void						setup() override;
 	void						update() override;
 private:
-	ci::Channel16uRef			mChannelDepth;
+	Channel16uRef			mChannelDepth;
 	Kinect2::DeviceRef			mDevice;
-	ci::Surface8uRef			mSurfaceColor;
-	ci::Surface32fRef			mSurfaceDepthToCameraTable;
-	ci::Surface32fRef			mSurfaceDepthToColorTable;
+	Surface8uRef			mSurfaceColor;
+	Surface32fRef			mSurfaceDepthToCameraTable;
+	Surface32fRef			mSurfaceDepthToColorTable;
 	long long					mTimeStamp;
 	long long					mTimeStampPrev;
 
 	void						loadGlsl();
-	ci::gl::GlslProgRef			mGlslProg;
-	ci::gl::TextureRef			mTextureColor;
-	ci::gl::TextureRef			mTextureDepth;
-	ci::gl::TextureRef			mTextureDepthToCameraTable;
-	ci::gl::TextureRef			mTextureDepthToColorTable;
-	ci::gl::VboMeshRef			mVboMesh;
+	gl::GlslProgRef			mGlslProg;
+	gl::TextureRef			mTextureColor;
+	gl::TextureRef			mTextureDepth;
+	gl::TextureRef			mTextureDepthToCameraTable;
+	gl::TextureRef			mTextureDepthToColorTable;
+	gl::VboMeshRef			mVboMesh;
 
-	ci::MayaCamUI				mMayaCam;
+    CameraUi				mCamUi;
+    CameraPersp                 mCam;
 
 	float						mFrameRate;
 	bool						mFullScreen;
-	ci::params::InterfaceGlRef	mParams;
+	params::InterfaceGlRef	mParams;
 };
 
 #include "cinder/app/RendererGl.h"
 
 using namespace ci;
-using namespace ci::app;
+using namespace app;
 using namespace std;
 
 void PointCloudApp::draw()
 {
 	gl::viewport( getWindowSize() );
 	gl::clear();
-	gl::setMatrices( mMayaCam.getCamera() );
+	gl::setMatrices( mCamUi.getCamera() );
 	gl::enableAlphaBlending();
 	gl::enableDepthRead();
 	gl::enableDepthWrite();
@@ -174,20 +179,21 @@ void PointCloudApp::mouseDrag( MouseEvent event )
 {
 	bool middle = event.isMiddleDown()	|| ( event.isMetaDown()		&& event.isLeftDown() );
 	bool right	= event.isRightDown()	|| ( event.isControlDown()	&& event.isLeftDown() );
-	mMayaCam.mouseDrag( event.getPos(), event.isLeftDown() && !middle && !right, middle, right );
+	mCamUi.mouseDrag( event.getPos(), event.isLeftDown() && !middle && !right, middle, right );
 }
 
 void PointCloudApp::resize()
 {
-	CameraPersp cam = mMayaCam.getCamera();
-	cam.setAspectRatio( getWindowAspectRatio() );
-	mMayaCam.setCurrentCam( cam );
+    mCam.setAspectRatio(getWindowAspectRatio());
+    //mCamUi.setCamera(&mCam);
 
 	gl::enableVerticalSync();
 }
 
 void PointCloudApp::setup()
-{	
+{
+    mCamUi = CameraUi(&mCam);
+
 	gl::enable( GL_TEXTURE_2D );
 	
 	mFrameRate		= 0.0f;
