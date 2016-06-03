@@ -126,7 +126,7 @@ void FaceApp::draw()
 #endif
 				//gl::lineWidth( 0.5f );
 				gl::enableWireframe();
-                gl::color(ColorAf(1.0f, 1.0f, 1.0f, 0.3f));
+                gl::color(ColorAf(0.0f, 0.5f, 0.0f, 0.3f));
                 gl::draw(*mesh);
 				gl::disableWireframe();
 
