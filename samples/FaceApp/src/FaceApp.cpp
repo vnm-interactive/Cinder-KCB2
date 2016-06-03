@@ -42,7 +42,9 @@
 
 #include "Kinect2.h"
 
-class FaceApp : public ci::app::App 
+using namespace ci;
+
+class FaceApp : public app::App 
 {
 public:
 	void							draw() override;
@@ -50,22 +52,24 @@ public:
 	void							update() override;
 private:
 	Kinect2::DeviceRef				mDevice;
-	bool							mEnabledFace2d;
-	bool							mEnabledFace3d;
-	std::vector<Kinect2::Face2d>	mFaces2d;
 	std::vector<Kinect2::Face3d>	mFaces3d;
-	ci::Surface8uRef				mSurface;
-
+#if 0
+	Surface8uRef				    mInfraChannel;
+#else
+    Channel16uRef                   mInfraChannel;
+#endif
 	float							mFrameRate;
 	bool							mFullScreen;
-	ci::params::InterfaceGlRef		mParams;
+	params::InterfaceGlRef		    mParams;
+
+    gl::TextureRef                  mTex;
 };
 
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/VboMesh.h"
 
 using namespace ci;
-using namespace ci::app;
+using namespace app;
 using namespace std;
 
 void FaceApp::draw()
@@ -74,25 +78,35 @@ void FaceApp::draw()
 	gl::clear();
 	gl::setMatricesWindow( getWindowSize() );
 
-	if ( mSurface ) {	
+	if ( mInfraChannel ) {
 		gl::color( Colorf::white() );
 		gl::enable( GL_TEXTURE_2D );
-		gl::TextureRef tex = gl::Texture::create( *mSurface );
-		gl::draw( tex, tex->getBounds(), Rectf( getWindowBounds() ) );
+        if (!mTex)
+            mTex = gl::Texture::create(*mInfraChannel);
+        else
+            mTex->update(*mInfraChannel);
+        gl::draw(mTex, mTex->getBounds(), Rectf(getWindowBounds()));
 	
 		gl::disable( GL_TEXTURE_2D );
 		gl::pushMatrices();
-		gl::scale( vec2( getWindowSize() ) / vec2( mSurface->getSize() ) );
+		gl::scale( vec2( getWindowSize() ) / vec2( mInfraChannel->getSize() ) );
 		
-		for ( const Kinect2::Face3d& face : mFaces3d ) {
-			const TriMeshRef& mesh = face.getMesh();
-			if ( mesh && mesh->getNumIndices() > 0 ) {
-						
+		for ( auto& face : mFaces3d ) {
+            auto orgMesh = face.getMesh();
+            if (orgMesh && orgMesh->getNumIndices() > 0) {
+                TriMesh* mesh = (TriMesh*)orgMesh->clone();
+#if 1
+                vec3* v3 = mesh->getPositions<3>();
+                for (size_t i = 0; i < mesh->getNumVertices(); ++i) {
+                    vec2 pos2d = mDevice->mapCameraToDepth(v3[i]);
+                    v3[i] = vec3(pos2d, 0);
+                }
+#else
 				// Map face points to color image
-				vector<vec2> v2;
+                vector<vec2> v2(mesh->getNumVertices());
 				vec3* v3 = mesh->getPositions<3>();
 				for ( size_t i = 0; i < mesh->getNumVertices(); ++i ) {
-					v2.push_back( mDevice->mapCameraToColor( v3[ i ] ) );
+                    v2[i] = mDevice->mapCameraToDepth(v3[i]);
 				}
 
 				// Create VBO mesh from TriMesh indices and 2D vertices
@@ -109,27 +123,18 @@ void FaceApp::draw()
 					GL_UNSIGNED_INT, 
 					gl::Vbo::create( GL_ELEMENT_ARRAY_BUFFER, mesh->getNumIndices() * sizeof( uint32_t ), (void*)mesh->getIndices().data() ) 
 					);
-
-				gl::lineWidth( 0.5f );
+#endif
+				//gl::lineWidth( 0.5f );
 				gl::enableWireframe();
-				gl::draw( vboMesh );
+                gl::color(ColorAf(1.0f, 1.0f, 1.0f, 0.3f));
+                gl::draw(*mesh);
 				gl::disableWireframe();
+
+                delete mesh;
 			}
 		}
 		
-		if ( mEnabledFace3d ) {
-			gl::color( Colorf( 1.0f, 0.0f, 0.0f ) );
-		} else {
-			gl::lineWidth( 2.0f );
-		}
-		for ( const Kinect2::Face2d& face : mFaces2d ) {
-			if ( face.isTracked() ) {
-				gl::drawStrokedRect( face.getBoundsColor() );
-				for ( const vec2& i : face.getPointsColor() ) {
-					gl::drawSolidCircle( i, 3.0f, 16 );
-				}
-			}
-		}
+        gl::color(Colorf(1.0f, 0.0f, 0.0f));
 		gl::popMatrices();
 	}
 
@@ -140,58 +145,43 @@ void FaceApp::setup()
 {	
 	gl::enableAlphaBlending();
 	
-	mEnabledFace2d	= true;
-	mEnabledFace3d	= true;
 	mFrameRate		= 0.0f;
 	mFullScreen		= false;
 
 	mDevice = Kinect2::Device::create();
 	mDevice->start();
 	mDevice->enableFaceMesh();
+    mDevice->enableJointTracking(false);
 	mDevice->connectBodyEventHandler( [ & ]( const Kinect2::BodyFrame frame )
 	{
 	} );
+#if 0
 	mDevice->connectColorEventHandler( [ & ]( const Kinect2::ColorFrame frame )
 	{
-		mSurface = frame.getSurface();
+		mInfraChannel = frame.getSurface();
 	} );
-		
+#else
+    mDevice->connectInfraredEventHandler([&](const Kinect2::InfraredFrame frame)
+    {
+        mInfraChannel = frame.getChannel();
+    });
+#endif
+    mDevice->connectFace3dEventHandler([&](const Kinect2::Face3dFrame& frame)
+    {
+        if (!frame.getFaces().empty()) {
+            mFaces3d = frame.getFaces();
+        }
+    });
+
 	mParams = params::InterfaceGl::create( "Params", ivec2( 230, 130 ) );
 	mParams->addParam( "Frame rate",		&mFrameRate,			"", true );
 	mParams->addParam( "Full screen",		&mFullScreen ).key( "f" );
-	mParams->addParam( "2d face tracking",	&mEnabledFace2d ).key( "2" );
-	mParams->addParam( "3d face tracking",	&mEnabledFace3d ).key( "3" );
 	mParams->addButton( "Quit",				[ & ]() { quit(); } ,	"key=q" );
 }
 
 void FaceApp::update()
 {
 	mFrameRate = getAverageFps();
-	
-	// Toggles streams by connecting and disconnecting events
-	if ( mEnabledFace2d && !mDevice->isFace2dEventHandlerConnected() ) {
-		mDevice->connectFace2dEventHandler( [ & ]( const Kinect2::Face2dFrame& frame )
-		{
-			if ( !frame.getFaces().empty() ) {
-				mFaces2d = frame.getFaces();
-			}
-		} );
-	} else if ( !mEnabledFace2d && mDevice->isFace2dEventHandlerConnected() ) {
-		mDevice->disconnectFace2dEventHandler();
-		mFaces2d.clear();
-	}
-
-	if ( mEnabledFace3d && !mDevice->isFace3dEventHandlerConnected() ) {
-		mDevice->connectFace3dEventHandler( [ & ]( const Kinect2::Face3dFrame& frame )
-		{
-			if ( !frame.getFaces().empty() ) {
-				mFaces3d = frame.getFaces();
-			}
-		} );
-	} else if ( !mEnabledFace3d && mDevice->isFace3dEventHandlerConnected() ) {
-		mDevice->disconnectFace3dEventHandler();
-		mFaces3d.clear();
-	}
 
 	if ( mFullScreen != isFullScreen() ) {
 		setFullScreen( mFullScreen );
@@ -201,7 +191,7 @@ void FaceApp::update()
 
 CINDER_APP( FaceApp, RendererGl, []( App::Settings* settings )
 {
-	settings->prepareWindow( Window::Format().size( 960, 540 ).title( "Face App" ) );
+	settings->prepareWindow( Window::Format().size( 1024, 848 ).title( "Face App" ) );
 	settings->setFrameRate( 60.0f );
 } )
  

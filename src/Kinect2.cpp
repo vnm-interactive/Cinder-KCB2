@@ -46,6 +46,19 @@ using namespace ci;
 using namespace app;
 using namespace std;
 
+static Device::FrameType myTypes[] =
+{
+    //Device::FrameType_Audio,
+    Device::FrameType_Body,
+    //Device::FrameType_BodyIndex,
+    //Device::FrameType_Color,
+    //Device::FrameType_Depth,
+    //Device::FrameType_Face2d,
+    Device::FrameType_Face3d,
+    Device::FrameType_Infrared,
+    //Device::FrameType_InfraredLongExposure
+};
+
 static const unsigned long kFaceFrameFeatures = 
 	FaceFrameFeatures::FaceFrameFeatures_BoundingBoxInColorSpace	| 
 	FaceFrameFeatures::FaceFrameFeatures_PointsInColorSpace			|
@@ -384,11 +397,6 @@ const ColorA8u& Face3d::getHairColor() const
 const vec3& Face3d::getHeadPivotPoint() const
 {
 	return mHeadPivotPoint;
-}
-
-const TriMeshRef& Face3d::getMesh() const
-{
-	return mMesh;
 }
 
 const quat& Face3d::getOrientation() const
@@ -1163,10 +1171,11 @@ void Device::start()
 	}
 
 	uint8_t sensorIsOpen = isSensorOpen();
-	for ( size_t frameType = (size_t)FrameType_Audio; frameType < (size_t)FrameType_InfraredLongExposure; ++frameType ) {
-		mProcesses[ (FrameType)frameType ]	= Process();
-		Process& process					= mProcesses.at( (FrameType)frameType );
-		switch( (FrameType)frameType ) {
+
+    for (FrameType frameType : myTypes) {
+		mProcesses[ frameType ]	= Process();
+		Process& process					= mProcesses.at( frameType );
+		switch( frameType ) {
 		case FrameType_Audio:
 			process.mThreadCallback = [ & ]()
 			{
@@ -1893,15 +1902,14 @@ void Device::stop()
 		}
 	}
 
-	for ( size_t i = (size_t)FrameType_Audio; i < (size_t)FrameType_InfraredLongExposure; ++i ) {
-		mProcesses.at( (FrameType)i ).stop();
+    for (FrameType frameType : myTypes) {
+        mProcesses.at(frameType).stop();
 	}
 }
 
 void Device::update()
 {
-	for ( size_t i = (size_t)FrameType_Audio; i < (size_t)FrameType_InfraredLongExposure; ++i ) {
-		FrameType frameType	= (FrameType)i;
+    for (FrameType frameType : myTypes) {
 		Process& process	= mProcesses.at( frameType );
 		switch( frameType ) {
 		case FrameType_Audio:
