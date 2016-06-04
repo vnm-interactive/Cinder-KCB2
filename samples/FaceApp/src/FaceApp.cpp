@@ -35,6 +35,7 @@ private:
     gl::TextureRef                  mMovieTex;
 
     bool mWireframe = false;
+    bool mShowMovie = true;
     bool mShowBackground = false;
     bool mFlip = false;
     bool first = true;
@@ -114,6 +115,7 @@ void FaceApp::draw()
         // Optimize it
         if (mesh)
         {
+            if (mShowMovie)
             {
                 gl::ScopedGlslProg glsl(gl::getStockShader(gl::ShaderDef().texture()));
                 gl::ScopedTextureBind tex(mMovieTex);
@@ -147,20 +149,12 @@ void FaceApp::setup()
     mDevice->start();
     mDevice->enableFaceMesh();
     mDevice->enableJointTracking(false);
-    mDevice->connectBodyEventHandler([&](const Kinect2::BodyFrame frame)
-    {
-    });
-#if 0
-    mDevice->connectColorEventHandler([&](const Kinect2::ColorFrame frame)
-    {
-        mInfraChannel = frame.getSurface();
-    });
-#else
+
     mDevice->connectInfraredEventHandler([&](const Kinect2::InfraredFrame frame)
     {
         mInfraChannel = frame.getChannel();
     });
-#endif
+
     mDevice->connectFace3dEventHandler([&](const Kinect2::Face3dFrame& frame)
     {
         if (!frame.getFaces().empty()) {
@@ -173,6 +167,7 @@ void FaceApp::setup()
     mParams->addParam("Flip", &mFlip).key("p");
     mParams->addParam("First", &first).key("s");
     mParams->addParam("Wireframe", &mWireframe).key("w");
+    mParams->addParam("ShowMovie", &mShowMovie).key("m");
     mParams->addParam("Background", &mShowBackground).key("b");
     mParams->addParam("Full screen", &mFullScreen).key("f");
     mParams->addButton("Quit", [&]() { quit(); }, "key=q");
