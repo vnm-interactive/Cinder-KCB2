@@ -1760,7 +1760,7 @@ void Device::start()
 														if ( mEnabledFaceMesh && sFaceModelIndexCount > 0 && sFaceModelVertexCount > 0 ) {
 															hr = iter->mFaceModel->CalculateVerticesForAlignment( iter->mFaceAlignment, sFaceModelVertexCount, (CameraSpacePoint*)&iter->mFaceModelVertices[ 0 ] );
 															if ( SUCCEEDED( hr ) ) {
-																face.mMesh = TriMesh::create( TriMesh::Format().positions() ); 
+																face.mMesh = TriMesh::create( TriMesh::Format().positions().texCoords0() ); 
 																face.mMesh->appendIndices( &iter->mFaceModelIndices[ 0 ], sFaceModelIndexCount );
 																face.mMesh->appendPositions( &iter->mFaceModelVertices[ 0 ], sFaceModelVertexCount );
 															}

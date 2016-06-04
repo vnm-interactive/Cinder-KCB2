@@ -29,6 +29,10 @@
   <ItemGroup>
     <ResourceCompile Include="Resources.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\..\..\QuickTime\lib\msw\x86\CVClient.lib" />
+    <Library Include="..\..\..\..\QuickTime\lib\msw\x86\QTMLClient.lib" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{74202EDD-91D2-4D2A-B0B6-355CEB16E6BE}</ProjectGuid>
     <RootNamespace>FaceApp</RootNamespace>

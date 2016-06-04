@@ -40,4 +40,12 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\..\..\QuickTime\lib\msw\x86\QTMLClient.lib">
+      <Filter>Source Files</Filter>
+    </Library>
+    <Library Include="..\..\..\..\QuickTime\lib\msw\x86\CVClient.lib">
+      <Filter>Source Files</Filter>
+    </Library>
+  </ItemGroup>
 </Project>
