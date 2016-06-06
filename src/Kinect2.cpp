@@ -49,7 +49,7 @@ using namespace std;
 static Device::FrameType myTypes[] =
 {
     //Device::FrameType_Audio,
-    Device::FrameType_Body,
+    //Device::FrameType_Body,
     //Device::FrameType_BodyIndex,
     //Device::FrameType_Color,
     //Device::FrameType_Depth,
@@ -1670,6 +1670,10 @@ void Device::start()
 										IHighDefinitionFaceFrame * faceFrame = nullptr;
 										hr = iter->mFaceFrameReader3d->AcquireLatestFrame( &faceFrame );
 										if ( SUCCEEDED( hr ) && faceFrame != nullptr ) {
+                                            BOOLEAN isFaceTracked;
+                                            faceFrame->get_IsFaceTracked(&isFaceTracked);
+                                            face.mTracked = isFaceTracked;
+
 											uint8_t trackingIdValid	= 0;
 											hr						= faceFrame->get_IsTrackingIdValid( &trackingIdValid );
 											if ( SUCCEEDED( hr )		&& 
@@ -2014,7 +2018,7 @@ mFaceModelBuilder( nullptr ), mFaceModelProduced( false )
 		if ( SUCCEEDED( hr ) && mFaceFrameSource3d != nullptr ) {
 			hr = mFaceFrameSource3d->OpenReader( &mFaceFrameReader3d );
 			if ( SUCCEEDED( hr ) && mFaceFrameSource3d != nullptr ) {
-				hr = mFaceFrameSource3d->OpenModelBuilder( FaceModelBuilderAttributes_SkinColor, &mFaceModelBuilder );
+				hr = mFaceFrameSource3d->OpenModelBuilder( FaceModelBuilderAttributes_None, &mFaceModelBuilder );
 				if ( SUCCEEDED( hr ) ) {
 					hr = mFaceModelBuilder->BeginFaceDataCollection();
 					if ( SUCCEEDED( hr ) ) {

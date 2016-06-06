@@ -1,9 +1,11 @@
 #include "cinder/app/App.h"
+#include "cinder/app/RendererGl.h"
 
 #include "cinder/gl/Texture.h"
 #include "cinder/gl/draw.h"
 #include "cinder/gl/scoped.h"
 #include "cinder/gl/shader.h"
+#include "cinder/gl/VboMesh.h"
 
 #include "cinder/params/Params.h"
 #include "cinder/qtime/QuickTimeGl.h"
@@ -11,6 +13,8 @@
 #include "Kinect2.h"
 
 using namespace ci;
+using namespace app;
+using namespace std;
 
 class FaceApp : public app::App
 {
@@ -21,11 +25,7 @@ public:
 private:
     Kinect2::DeviceRef				mDevice;
     std::vector<Kinect2::Face3d>	mFaces3d;
-#if 0
-    Surface8uRef				    mInfraChannel;
-#else
     Channel16uRef                   mInfraChannel;
-#endif
     float							mFrameRate;
     bool							mFullScreen;
     params::InterfaceGlRef		    mParams;
@@ -40,13 +40,6 @@ private:
     bool mFlip = false;
     bool first = true;
 };
-
-#include "cinder/app/RendererGl.h"
-#include "cinder/gl/VboMesh.h"
-
-using namespace ci;
-using namespace app;
-using namespace std;
 
 void FaceApp::draw()
 {
@@ -75,40 +68,41 @@ void FaceApp::draw()
 
         for (auto& face : mFaces3d) {
             auto orgMesh = face.getMesh();
-            if (face.isTracked()) {
-                if (mesh)
-                    delete mesh;
-                mesh = (TriMesh*)orgMesh->clone();
+            if (!orgMesh || face.getBounds().x1 == 0)
+                continue;
 
-                vec3* v3 = mesh->getPositions<3>();
-                for (size_t i = 0; i < mesh->getNumVertices(); ++i) {
-                    vec2 pos2d = mDevice->mapCameraToDepth(v3[i]);
-                    v3[i] = vec3(pos2d, 0);
-                }
+            if (mesh)
+                delete mesh;
+            mesh = (TriMesh*)orgMesh->clone();
 
-                // TODO: Optimize it
-                if (first)
-                {
-                    first = false;
+            vec3* v3 = mesh->getPositions<3>();
+            for (size_t i = 0; i < mesh->getNumVertices(); ++i) {
+                vec2 pos2d = mDevice->mapCameraToDepth(v3[i]);
+                v3[i] = vec3(pos2d, 0);
+            }
 
-                    AxisAlignedBox aabb = mesh->calcBoundingBox();
-                    vec3 min = aabb.getMin();
-                    vec3 max = aabb.getMax();
-                    vec3 length = aabb.getExtents() * 2.0f;
-                    for (size_t i = 0; i < mesh->getNumVertices(); ++i)
-                    {
-                        uv.push_back(
-                        {
-                            (v3[i].x - min.x) / length.x,
-                            (v3[i].y - min.y) / length.y
-                        });
-                    }
-                }
+            // TODO: Optimize it
+            if (first)
+            {
+                first = false;
 
+                AxisAlignedBox aabb = mesh->calcBoundingBox();
+                vec3 min = aabb.getMin();
+                vec3 max = aabb.getMax();
+                vec3 length = aabb.getExtents() * 2.0f;
                 for (size_t i = 0; i < mesh->getNumVertices(); ++i)
                 {
-                    mesh->appendTexCoord0(uv[i]);
+                    uv.push_back(
+                    {
+                        (v3[i].x - min.x) / length.x,
+                        (v3[i].y - min.y) / length.y
+                    });
                 }
+            }
+
+            for (size_t i = 0; i < mesh->getNumVertices(); ++i)
+            {
+                mesh->appendTexCoord0(uv[i]);
             }
         }
 
